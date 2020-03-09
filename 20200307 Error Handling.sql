@@ -4,7 +4,12 @@ BEGIN;
 	EXEC sp_executesql @SQL;
 END;
 GO
-CREATE TABLE [admin].[ApplicationErrorLog](
+IF EXISTS (SELECT 1 FROM sys.tables WHERE [name] = 'ApplicationErrorLog' and SCHEMA_NAME([schema_id]) = 'Admin')
+BEGIN;
+	DROP TABLE [Admin].[ApplicationErrorLog];
+END;
+GO
+CREATE TABLE [Admin].[ApplicationErrorLog](
 	[RecordId] [int] IDENTITY(1,1) NOT NULL,
 	[LogInsertDate] [datetime] NOT NULL,
 	[DatabaseId] [int] NULL,
@@ -14,6 +19,7 @@ CREATE TABLE [admin].[ApplicationErrorLog](
 	[UserMessage] [nvarchar](4000) NULL,
 	[UserInfoMessage] [nvarchar](4000) NULL,
 	[DatabaseName] [sysname] NULL,
+	[IsAdminAlert] [bit] NOT NULL,
 	[ObjectName] [sysname] NULL,
 PRIMARY KEY CLUSTERED 
 (
@@ -25,7 +31,7 @@ ALTER TABLE [admin].[ApplicationErrorLog] ADD  DEFAULT (getdate()) FOR [LogInser
 GO
 ALTER TABLE [admin].[ApplicationErrorLog] ADD  CONSTRAINT [df_Admin_ApplicationErrorLog_DatabaseName]  DEFAULT (db_name()) FOR [DatabaseName]
 GO
-CREATE PROC [dbo].[p_Proc_Catch_Log_Error] (
+CREATE OR ALTER PROC [dbo].[p_Proc_Catch_Log_Error] (
 	@ProcedureId int = null
 )
 as
@@ -39,6 +45,7 @@ INSERT INTO [admin].[ApplicationErrorLog] (
 	, SystemErrorMessage
 	, ErrorLine
 	, DatabaseName
+	, IsAdminAlert
 	, ObjectName
 )
 SELECT 
@@ -47,7 +54,33 @@ SELECT
 	, ERROR_MESSAGE()
 	, ERROR_LINE()
 	, DB_NAME()
+	, 1
 	, @SchemaName + '.' + OBJECT_NAME(@ProcedureId);
 GO
+CREATE OR ALTER PROC [dbo].[p_Proc_Log_Business_Error] (
+	  @ProcedureId INT 
+	, @UserMessage NVARCHAR(4000)
+	, @UserInfoMessage NVARCHAR(4000) = NULL
+)
+as
 
+INSERT INTO [admin].[ApplicationErrorLog] (
+	  DatabaseId
+	, ObjectId
+	, DatabaseName
+	, ObjectName
+	, IsAdminAlert 
+	, UserInfoMessage
+	, UserMessage
+	)
+SELECT 
+	  DB_ID()
+	, @ProcedureId
+	, DB_NAME()
+	, OBJECT_NAME(@ProcedureId)
+	, 1
+	, ISNULL(@UserInfoMessage, @UserMessage)
+	, @UserMessage
+	;
+GO
 
