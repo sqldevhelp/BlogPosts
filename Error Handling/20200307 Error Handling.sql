@@ -1,9 +1,12 @@
+-- Create Admin schema for error objects
+-- This can be removed and objects can be created in any schema
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE [name] = 'Admin')
 BEGIN;
 	DECLARE @SQL NVARCHAR(MAX) = N'CREATE SCHEMA Admin AUTHORIZATION dbo;';
 	EXEC sp_executesql @SQL;
 END;
 GO
+-- Create error log table
 IF EXISTS (SELECT 1 FROM sys.tables WHERE [name] = 'ApplicationErrorLog' and SCHEMA_NAME([schema_id]) = 'Admin')
 BEGIN;
 	DROP TABLE [Admin].[ApplicationErrorLog];
@@ -31,6 +34,8 @@ ALTER TABLE [admin].[ApplicationErrorLog] ADD  DEFAULT (getdate()) FOR [LogInser
 GO
 ALTER TABLE [admin].[ApplicationErrorLog] ADD  CONSTRAINT [df_Admin_ApplicationErrorLog_DatabaseName]  DEFAULT (db_name()) FOR [DatabaseName]
 GO
+
+-- Create error log procedures
 CREATE OR ALTER PROC [dbo].[p_Proc_Catch_Log_Error] (
 	@ProcedureId int = null
 )
